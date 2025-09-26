@@ -41,7 +41,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Backend setup & tests
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -49,16 +48,13 @@ jobs:
 
       - name: Install backend dev dependencies
         run: |
-          cd backend
-          pip install -r requirements.txt
+          pip install -r backend/requirements.txt
           pip install pytest
 
       - name: Run backend tests
         run: |
-          cd backend/hello-world
-          PYTHONPATH=$(pwd) pytest --maxfail=1 --disable-warnings -q || true
+          PYTHONPATH=$(pwd)/backend/hello-world pytest backend/hello-world --maxfail=1 --disable-warnings -q || true
 
-      # Authenticate to GCP
       - name: Authenticate to GCP (WIF)
         uses: google-github-actions/auth@v2
         with:
@@ -69,16 +65,13 @@ jobs:
       - name: Configure Docker auth
         run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 
-      # Build & Push Docker Image
       - name: Build & Push Docker Image
         run: |
           IMAGE="${REGION}-docker.pkg.dev/$PROJECT_ID/${IMAGE_NAME}/${IMAGE_NAME}:${IMAGE_TAG}"
-          echo "Building and pushing $IMAGE"
-          docker build -t "$IMAGE" ./backend
+          docker build -t "$IMAGE" backend
           docker push "$IMAGE"
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      # Deploy to Cloud Run
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy ${RESOURCE_PREFIX}-api \
@@ -96,7 +89,6 @@ jobs:
             --region=$REGION \
             --project=$PROJECT_ID \
             --format="value(status.url)")
-          echo "CLOUD_RUN_URL=$URL" >> $GITHUB_ENV
           echo "cloud_run_url=$URL" >> $GITHUB_OUTPUT
           echo "Cloud Run URL: $URL"
 
@@ -106,11 +98,10 @@ jobs:
   frontend:
     name: Frontend - Build & Deploy to Firebase Hosting
     runs-on: ubuntu-latest
-    needs: backend   # Deploy backend first
+    needs: backend
     permissions:
       id-token: write
       contents: read
-
 
     steps:
       - name: Checkout code
@@ -122,18 +113,15 @@ jobs:
           node-version: 18
 
       - name: Install dependencies
-        run: |
-          cd frontend
-          npm ci
+        working-directory: frontend
+        run: npm ci
 
       - name: Inject API URL
-        run: |
-          echo "REACT_APP_API_URL=${{ needs.backend.outputs.cloud_run_url }}" > frontend/.env.production
+        run: echo "REACT_APP_API_URL=${{ needs.backend.outputs.cloud_run_url }}" > frontend/.env.production
 
       - name: Build frontend
-        run: |
-          cd frontend
-          npm run build
+        working-directory: frontend
+        run: npm run build
 
       - name: Deploy to Firebase Hosting
         uses: w9jds/firebase-action@v2.2.0
