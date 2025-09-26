@@ -1,0 +1,141 @@
+name: FlyBot CI/CD Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Target environment (dev or prod)"
+        required: true
+        default: "dev"
+
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - '.github/workflows/flybot-ci-cd.yml'
+
+jobs:
+  # -----------------------------
+  # Backend: Build, Test & Deploy
+  # -----------------------------
+  backend:
+    name: Backend - Test, Build & Deploy
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    env:
+      PROJECT_ID: concepts-459009
+      REGION: us-central1
+      IMAGE_NAME: flybot-api
+      IMAGE_TAG: ${{ github.sha }}
+      ENVIRONMENT: ${{ github.event.inputs.env || 'dev' }}
+      RESOURCE_PREFIX: flybot
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Backend setup & tests
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dev dependencies
+        run: |
+          cd backend
+          pip install -r requirements-dev.txt
+
+      - name: Run backend tests
+        run: |
+          cd backend
+          PYTHONPATH=$(pwd) pytest tests --maxfail=1 --disable-warnings -q
+
+      # Authenticate to GCP
+      - name: Authenticate to GCP (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Configure Docker auth
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      # Build & Push Docker Image
+      - name: Build & Push Docker Image
+        run: |
+          IMAGE="${REGION}-docker.pkg.dev/$PROJECT_ID/${IMAGE_NAME}/${IMAGE_NAME}:${IMAGE_TAG}"
+          echo "Building and pushing $IMAGE"
+          docker build -t "$IMAGE" ./backend
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+
+      # Deploy to Cloud Run
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${RESOURCE_PREFIX}-api \
+            --image=$IMAGE \
+            --platform=managed \
+            --region=$REGION \
+            --project=$PROJECT_ID \
+            --allow-unauthenticated
+
+      - name: Get Cloud Run URL
+        id: backend-url
+        run: |
+          URL=$(gcloud run services describe ${RESOURCE_PREFIX}-api \
+            --platform=managed \
+            --region=$REGION \
+            --project=$PROJECT_ID \
+            --format="value(status.url)")
+          echo "CLOUD_RUN_URL=$URL" >> $GITHUB_ENV
+          echo "cloud_run_url=$URL" >> $GITHUB_OUTPUT
+
+  # -----------------------------
+  # Frontend: Build & Deploy
+  # -----------------------------
+  frontend:
+    name: Frontend - Build & Deploy to Firebase Hosting
+    runs-on: ubuntu-latest
+    needs: backend   # Deploy backend first
+    permissions:
+      id-token: write
+      contents: read
+
+    env:
+      CLOUD_RUN_URL: ${{ needs.backend.outputs.cloud_run_url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Inject API URL
+        run: |
+          echo "REACT_APP_API_URL=$CLOUD_RUN_URL" > frontend/.env.production
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Deploy to Firebase Hosting
+        uses: w9jds/firebase-action@v2.2.0
+        with:
+          args: deploy --only hosting
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

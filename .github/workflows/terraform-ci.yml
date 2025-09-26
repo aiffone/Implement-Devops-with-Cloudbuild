@@ -1,0 +1,86 @@
+name: FlyBot Infra CI/CD Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Target environment (dev or prod)"
+        required: true
+        default: "dev"
+
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra-ci.yml'
+
+  pull_request:
+    paths:
+      - 'infra/**'
+
+jobs:
+  terraform:
+    name: Terraform CI and Apply
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      ENVIRONMENT: ${{ github.event.inputs.env || 'dev' }}
+      TF_VAR_billing_account_id: ${{ secrets.GCP_BILLING_ACCOUNT_ID }}
+      TF_VAR_resource_prefix: flybot
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: Initialize Terraform
+        run: terraform -chdir=infra/main init -input=false
+
+      - name: Select or Create Workspace
+        run: |
+          ENV="${ENVIRONMENT:-dev}"
+          terraform -chdir=infra/main workspace select "$ENV" || \
+          terraform -chdir=infra/main workspace new "$ENV"
+
+      - name: Terraform Format
+        run: terraform -chdir=infra/main fmt -check
+
+      - name: Terraform Validate
+        run: terraform -chdir=infra/main validate
+
+      - name: Terraform Plan
+        run: |
+          ENV="${ENVIRONMENT:-dev}"
+          terraform -chdir=infra/main plan \
+            -var-file="../workspaces/${ENV}/terraform.tfvars" \
+            -var "billing_account_id=$TF_VAR_billing_account_id" \
+            -var "resource_prefix=$TF_VAR_resource_prefix"
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          ENV="${ENVIRONMENT:-dev}"
+          terraform -chdir=infra/main apply -auto-approve \
+            -var-file="../workspaces/${ENV}/terraform.tfvars" \
+            -var "billing_account_id=$TF_VAR_billing_account_id" \
+            -var "resource_prefix=$TF_VAR_resource_prefix"
+
+      - name: Output Terraform variables
+        id: tf_outputs
+        run: |
+          ENV="${ENVIRONMENT:-dev}"
+          # Example outputs; add more as needed
+          echo "cloud_run_api_service_name=$(terraform -chdir=infra/main output -raw cloud_run_api_service_name)" >> $GITHUB_ENV
+          echo "cloud_run_api_service_url=$(terraform -chdir=infra/main output -raw cloud_run_api_service_url)" >> $GITHUB_ENV

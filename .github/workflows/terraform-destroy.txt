@@ -1,0 +1,49 @@
+name: Terraform Destroy GKE Only
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Target environment (e.g. dev, prod)"
+        required: true
+        default: "dev"
+
+jobs:
+  terraform-destroy:
+    name: Destroy GKE Cluster
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    env:
+      ENVIRONMENT: ${{ github.event.inputs.env }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: Initialize Terraform
+        run: terraform -chdir=infra/main init -input=false
+
+      - name: Select Workspace
+        run: terraform -chdir=infra/main workspace select "${{ env.ENVIRONMENT }}"
+
+      - name: Destroy GKE Only
+        run: |
+          terraform -chdir=infra/main destroy -auto-approve \
+            -var-file="../workspaces/${{ env.ENVIRONMENT }}/terraform.tfvars" \
+            -target=module.gke.google_container_cluster.gke

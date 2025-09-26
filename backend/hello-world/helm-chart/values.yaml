@@ -1,0 +1,15 @@
+# Default values for the Helm chart
+
+# Namespace to deploy into
+namespace: daemon
+
+# Number of replicas
+replicas: 2
+
+# Image settings
+image:
+  repository: europe-west1-docker.pkg.dev/infra1-430721/hello/hello-world  # Updated image reference
+  tag: latest
+
+# Container port for the application
+containerPort: 8080
