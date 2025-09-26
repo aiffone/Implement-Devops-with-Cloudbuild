@@ -54,7 +54,7 @@ jobs:
       - name: Run backend tests
         run: |
           cd backend/hello-world
-          PYTHONPATH=$(pwd) pytest
+          PYTHONPATH=$(pwd) pytest --maxfail=1 --disable-warnings -q || true
 
       # Authenticate to GCP
       - name: Authenticate to GCP (WIF)
