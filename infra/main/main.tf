@@ -41,8 +41,8 @@ module "kms" {
   bucket_name = var.storage_bucket_name
 }
 
-# --- BigQuery for FlyBot ---
-module "bigquery_flybot" {
+# --- BigQuery for hello ---
+module "bigquery_hello" {
   source     = "../modules/bigquery"
   project_id = var.project_id
   region     = var.region
@@ -50,8 +50,8 @@ module "bigquery_flybot" {
   location   = var.bigquery_location
 }
 
-# --- Storage for FlyBot --- 
-module "storage_flybot" {
+# --- Storage for hello --- 
+module "storage_hello" {
   source         = "../modules/storage"
   project_id     = var.project_id
   project_number = var.project_number
@@ -60,8 +60,8 @@ module "storage_flybot" {
   kms_key_id     = module.kms.crypto_key_id
 }
 
-# --- Cloud Run for FlyBot ---
-module "cloudrun_flybot" {
+# --- Cloud Run for hello ---
+module "cloudrun_hello" {
   source            = "../modules/cloudrun"
   project_id        = var.project_id
   region            = var.region
@@ -70,8 +70,8 @@ module "cloudrun_flybot" {
   service_name      = "${var.resource_prefix}-${var.cloudrun_service_name}"
 }
 
-# --- Pub/Sub for FlyBot ---
-module "pubsub_flybot" {
+# --- Pub/Sub for hello ---
+module "pubsub_hello" {
   source     = "../modules/pubsub"
   project_id = var.project_id
   topic_name = "${var.resource_prefix}-${var.pubsub_topic_name}"

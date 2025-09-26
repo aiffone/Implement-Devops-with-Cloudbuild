@@ -29,14 +29,14 @@ variable "budget_amount_usd" {
 variable "vpc_network_name" {
   description = "Name of the VPC network"
   type        = string
-  default     = "flybot-network"
+  default     = "hello-network"
 }
 
 # ---- BigQuery ----
 variable "bigquery_dataset_id" {
   description = "BigQuery dataset ID"
   type        = string
-  default     = "flybot_dataset"
+  default     = "hello_dataset"
 }
 
 variable "bigquery_location" {
@@ -47,27 +47,27 @@ variable "bigquery_location" {
 
 # ---- Storage ----
 variable "storage_bucket_name" {
-  description = "GCS bucket name for FlyBot data"
+  description = "GCS bucket name for hello data"
   type        = string
-  default     = "flybot-storage"
+  default     = "hello-storage"
 }
 
 # ---- Cloud Run ----
 variable "cloudrun_service_name" {
   description = "Name of the Cloud Run service"
   type        = string
-  default     = "flybot-api"
+  default     = "hello-api"
 }
 
 locals {
-  cloudrun_image = "gcr.io/${var.project_id}/flybot-api:latest"
+  cloudrun_image = "gcr.io/${var.project_id}/hello-api:latest"
 }
 
 # ---- Pub/Sub ----
 variable "pubsub_topic_name" {
   description = "Name of the Pub/Sub topic"
   type        = string
-  default     = "flybot-events"
+  default     = "hello-events"
 }
 
 variable "project_number" {
@@ -82,6 +82,6 @@ variable "cloudrun_image" {
 
 variable "resource_prefix" {
   type        = string
-  description = "Prefix to distinguish resources created by this repo/project (e.g., flybot)"
-  default     = "flybot"
+  description = "Prefix to distinguish resources created by this repo/project (e.g., hello)"
+  default     = "hello"
 }

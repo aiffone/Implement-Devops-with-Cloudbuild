@@ -1,4 +1,4 @@
-name: FlyBot CI/CD Pipeline
+name: Hello CI/CD Pipeline
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ on:
     paths:
       - 'backend/**'
       - 'frontend/**'
-      - '.github/workflows/flybot-ci-cd.yml'
+      - '.github/workflows/hello-ci-cd.yml'
 
 jobs:
   # -----------------------------
@@ -30,10 +30,10 @@ jobs:
     env:
       PROJECT_ID: concepts-459009
       REGION: us-central1
-      IMAGE_NAME: flybot-api
+      IMAGE_NAME: hello-api
       IMAGE_TAG: ${{ github.sha }}
       ENVIRONMENT: ${{ github.event.inputs.env || 'dev' }}
-      RESOURCE_PREFIX: flybot
+      RESOURCE_PREFIX: hello
 
     steps:
       - name: Checkout code

@@ -1,4 +1,4 @@
-name: FlyBot Infra CI/CD Pipeline
+name: Hello Infra CI/CD Pipeline
 
 on:
   workflow_dispatch:
@@ -28,7 +28,7 @@ jobs:
     env:
       ENVIRONMENT: ${{ github.event.inputs.env || 'dev' }}
       TF_VAR_billing_account_id: ${{ secrets.GCP_BILLING_ACCOUNT_ID }}
-      TF_VAR_resource_prefix: flybot
+      TF_VAR_resource_prefix: hello
 
     steps:
       - uses: actions/checkout@v4
