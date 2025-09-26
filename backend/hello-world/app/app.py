@@ -1,6 +1,6 @@
 from flask import Flask
 
-# Create a new Flask application
+# Create a new Flask application 
 app = Flask(__name__)
 
 # Define a route for the root URL
