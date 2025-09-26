@@ -96,6 +96,7 @@ jobs:
             --format="value(status.url)")
           echo "CLOUD_RUN_URL=$URL" >> $GITHUB_ENV
           echo "cloud_run_url=$URL" >> $GITHUB_OUTPUT
+          echo "Cloud Run URL: $URL"
 
   # -----------------------------
   # Frontend: Build & Deploy
