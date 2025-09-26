@@ -1,6 +1,6 @@
 # Default values for the Helm chart
 
-# Namespace to deploy into
+# Namespace to deploy into 
 namespace: daemon
 
 # Number of replicas
